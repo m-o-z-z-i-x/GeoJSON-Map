@@ -1,93 +1,93 @@
-## О проекте
+## About the Project
 
-Это веб-приложение для работы с географическими данными и построения маршрутов. Проект создан для демонстрации навыков работы с Vue.js и геопространственными данными, а также включает интерактивные карты и алгоритмы маршрутизации
+This is a web application for working with geographic data and building routes. The project is created to demonstrate skills in Vue.js and geospatial data, and includes interactive maps and routing algorithms.
 
 > [!NOTE]  
-> В качестве тестового региона выбрана Москва. В GeoJSON загружены маршруты только в пределах этого региона (внутри зоны, обозначенной на карте)
+> Moscow is chosen as the test region. The GeoJSON contains routes only within this region (inside the area marked on the map).
 
-## Демонстрация
+## Demo
 
-<img src="public/assets/gif/demo.gif" width="100%">
+<img src="public/assets/webp/demo.webp">
 
-## Требования к проекту
+## Project Requirements
 
-### Основной функционал
-1. **Интерактивная карта с отрисованными дорогами**
-   - Возможность зума для детального просмотра
-   - Возможность перемещения по карте для исследования различных участков
-2. **Установка точек на карте**
-   - Точки представлены в виде маркеров с возможностью перемещения через перетаскивание (Drag-and-Drop)
-   - При выборе новой точки предыдущая удаляется для упрощения взаимодействия
-3. **Нахождение кратчайшего маршрута**
-   - Алгоритм подсчитывает и подсвечивает путь на карте между установленными точками
-   - Направление и односторонние дороги не учитываются для упрощения маршрута
+### Main Features
+1. **Interactive map with rendered roads**
+   - Ability to zoom for detailed viewing
+   - Ability to move the map to explore different areas
+2. **Setting points on the map**
+   - Points are represented as markers that can be moved via drag-and-drop
+   - When a new point is selected, the previous one is removed for easier interaction
+3. **Finding the shortest route**
+   - The algorithm calculates and highlights the path on the map between the set points
+   - Direction and one-way roads are not considered for route simplification
 
-## Структура проекта
+## Project Structure
 
-### Основные компоненты
+### Main Components
 
-- `src/components/Map.vue` - основной компонент карты, отвечает за отрисовку и взаимодействие
-- `src/components/LoadingProgress.vue` - компонент, отображающий прогресс загрузки данных
-- `src/views/MapView.vue` - представление, в котором размещается карта и элементы управления
+- `src/components/Map.vue` - main map component, responsible for rendering and interaction
+- `src/components/LoadingProgress.vue` - component displaying data loading progress
+- `src/views/MapView.vue` - view containing the map and controls
 
-### Технологии
+### Technologies
 
-- **Vue.js 3** - основной фреймворк для разработки пользовательского интерфейса
-- **Leaflet.js** - библиотека для интерактивных карт
-- **Turf.js** - для выполнения геопространственных вычислений
-- **Vite** - инструмент для сборки проекта
-- **SASS** - для стилизации (установлен, но не используется)
-- **Pinia** - для управления состоянием (установлен, но не используется)
-- **Vue Router** - для управления маршрутами (установлен, но не используется)
+- **Vue.js 3** - main framework for UI development
+- **Leaflet.js** - library for interactive maps
+- **Turf.js** - for geospatial calculations
+- **Vite** - project build tool
+- **SASS** - for styling (installed but not used)
+- **Pinia** - for state management (installed but not used)
+- **Vue Router** - for routing (installed but not used)
 
-## Основной функционал
+## Main Functionality
 
-### Интерактивная карта
-- Отображение дорожной сети Москвы из GeoJSON
-- Установка и перемещение маркеров с помощью Drag-and-Drop
-- Автоматическое удаление предыдущей точки при добавлении новой
+### Interactive Map
+- Display of Moscow's road network from GeoJSON
+- Setting and moving markers using drag-and-drop
+- Automatic removal of the previous point when adding a new one
 
-### Алгоритм маршрутизации
-- Реализация алгоритма [A*](https://ru.wikipedia.org/wiki/A*?lang=ru) для поиска кратчайшего пути
-- Учет реальной дорожной сети (без пересечения зданий)
-- Выполнение вычислений в Web Worker для сохранения отзывчивости интерфейса
-- Визуализация прогресса поиска
-- Ограничение максимального расстояния между точками (50 км)
+### Routing Algorithm
+- Implementation of the [A*](https://en.wikipedia.org/wiki/A*_search_algorithm) algorithm for finding the shortest path
+- Takes into account the real road network (no building crossings)
+- Calculations are performed in a Web Worker to keep the UI responsive
+- Visualization of search progress
+- Maximum distance between points is limited (50 km)
 
-### Обработка данных
-- Загрузка данных из OpenStreetMap через Overpass API
-- Автоматическая фильтрация данных по границам Москвы
-- Оптимизация структуры данных для обработки графа дорог
+### Data Processing
+- Loading data from OpenStreetMap via Overpass API
+- Automatic filtering of data by Moscow boundaries
+- Data structure optimization for road graph processing
 
-## Как запустить
+## How to Run
 
-1. **Установка зависимостей:**
+1. **Install dependencies:**
    ```bash
    npm install
    ```
 
-2. **Загрузка данных дорог:**
-   Данные в формате GeoJSON можно получить двумя способами:
-   - Через Overlay API командой:
+2. **Download road data:**
+   Road data in GeoJSON format can be obtained in two ways:
+   - Via Overlay API command:
    ```bash
    npm run fetch-roads
    ```
-   - Вручную скачать файл `roads.geojson` и поместить его в директорию `public/data/`
+   - Manually download the `roads.geojson` file and place it in the `public/data/` directory
 
-3. **Запуск в режиме разработки:**
+3. **Run in development mode:**
    ```bash
    npm run dev
    ```
 
-4. **Сборка проекта:**
+4. **Build the project:**
    ```bash
    npm run build
    ```
 
-## Технические особенности
+## Technical Features
 
-- Архитектура на основе Vue 3 Composition API
-- Использование Web Worker для фоновых вычислений
-- Работа с реальными геоданными дорожной сети Москвы
-- Оптимизация производительности для обработки больших объемов данных
-- Подробная обработка и логирование ошибок
+- Architecture based on Vue 3 Composition API
+- Use of Web Worker for background calculations
+- Working with real geodata of Moscow's road network
+- Performance optimization for processing large amounts of data
+- Detailed error handling and logging

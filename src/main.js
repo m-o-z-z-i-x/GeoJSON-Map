@@ -3,22 +3,22 @@ import { createRouter, createWebHistory } from "vue-router";
 import App from "@/App.vue";
 import "@/styles/main.scss";
 
-// создание роутера
+// router creation
 const router = createRouter({
-  history: createWebHistory(),
-  routes: [
-    {
-      path: "/",
-      component: () => import("@/views/MapView.vue")
-    }
-  ]
+	history: createWebHistory(),
+	routes: [
+		{
+			path: "/",
+			component: () => import("@/views/MapView.vue")
+		}
+	]
 });
 
-// создание приложения
+// app creation
 const app = createApp(App);
 
-// использование роутера
+// use router
 app.use(router);
 
-// монтирование приложения
+// mount app
 app.mount("#app");

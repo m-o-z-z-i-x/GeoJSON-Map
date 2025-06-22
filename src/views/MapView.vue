@@ -1,15 +1,15 @@
 <script setup>
-  import Map from "@/components/Map.vue";
+	import Map from "@/components/Map.vue";
 </script>
 
 <template>
-  <div class="map-view">
-    <Map />
-  </div>
+	<div class="map-view">
+		<Map />
+	</div>
 </template>
 
-<style lang="scss" scoped>
-  .map-view {
-    height: 100%;
-  }
+<style scoped>
+	.map-view {
+		height: 100%;
+	}
 </style> 

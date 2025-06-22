@@ -3,7 +3,6 @@
 	import L from "leaflet";
 	import "leaflet/dist/leaflet.css";
 	import * as turf from "@turf/turf";
-	import convexHull from "@turf/convex";
 	import LoadingProgress from "@/components/LoadingProgress.vue";
 
 	const mapContainer = ref(null);
@@ -19,59 +18,61 @@
 	const isMobile = ref(window.innerWidth <= 768);
 	const boundaryLayer = ref(null);
 
-	// состояние загрузки дорог
+	// loading state for roads
 	const isLoadingRoads = ref(false);
 	const roadsLoadingMessage = ref("");
 	const roadsLoadingProgress = ref(0);
 
-	// состояние загрузки маршрута
+	// loading state for route
 	const isLoadingRoute = ref(false);
 	const routeLoadingMessage = ref("");
 	const routeLoadingProgress = ref(0);
 
-	// центр москвы и радиус в километрах
+	// center of Moscow and radius in kilometers
 	const moscowCenter = {
 		lat: 55.7558,
 		lng: 37.6173
-	};
-	const moscowRadius = 15; // 15 км от центра
+	}
+	const moscowRadius = 15; // 15 km from center
 
-	// инициализация карты
+	// map initialization
 	onMounted(() => {
-		console.log("Инициализация карты...");
-		console.log("Контейнер карты:", mapContainer.value);
+		console.log("Map initialization");
+		console.log("Map container:", mapContainer.value);
 
 		if (!mapContainer.value) {
-			console.error("Контейнер карты не найден!");
+			console.error("Map container not found!");
 			return;
 		}
 
 		map.value = L.map(mapContainer.value).setView([moscowCenter.lat, moscowCenter.lng], 11);
-		console.log("Карта создана");
+
+		console.log("Map created");
 
 		L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 			attribution: "© OpenStreetMap contributors"
 		}).addTo(map.value);
-		console.log("Базовый слой добавлен");
+		console.log("Base layer added");
 
-		// добавляем круг, показывающий границы области
+		// add a circle showing the area boundaries
 		boundaryLayer.value = L.circle([moscowCenter.lat, moscowCenter.lng], {
-			radius: moscowRadius * 1000, // конвертируем км в метры
+			radius: moscowRadius * 1000, // convert km to meters
 			color: "#3388ff",
 			fillColor: "#3388ff",
 			fillOpacity: 0.1,
 			weight: 2
 		}).addTo(map.value);
 
-		// инициализация воркера
+		// worker initialization
 		try {
 			worker.value = new Worker(new URL("../scripts/pathFinder.worker.js", import.meta.url), {
 				type: "module"
 			});
 			worker.value.onmessage = handleWorkerMessage;
-			console.log("Web Worker инициализирован");
 
-			// отправляем параметры области в воркер
+			console.log("Web worker initialized");
+
+			// send area parameters to worker
 			worker.value.postMessage({
 				type: "set_area",
 				data: {
@@ -80,30 +81,32 @@
 				}
 			});
 
-			// загрузка данных о дорогах
+			// load road data
 			loadRoadData();
 		} catch (error) {
-			console.error("Ошибка при инициализации Web Worker:", error);
+			console.error("Error during web worker initialization:", error);
+
 			isLoadingRoads.value = false;
-			roadsLoadingMessage.value = "Ошибка инициализации";
+			roadsLoadingMessage.value = "initialization error";
 		}
 
-		// добавляем обработчик кликов для установки точек
+		// add click handler for setting points
 		map.value.on("click", handleMapClick);
-		console.log("Обработчик кликов добавлен");
+		console.log("Click handler added");
 
-		// добавляем обработчик изменения размера
+		// add resize handler
 		const handleResize = () => {
 			isMobile.value = window.innerWidth <= 768;
 			if (map.value) {
 				map.value.invalidateSize();
 			}
-		};
+		}
+
 		window.addEventListener("resize", handleResize);
-		console.log("Обработчик изменения размера добавлен");
+		console.log("Resize handler added");
 	});
 
-	// очистка
+	// cleanup
 	onUnmounted(() => {
 		if (map.value) {
 			map.value.remove();
@@ -112,76 +115,55 @@
 			worker.value.terminate();
 			worker.value = null;
 		}
+
 		window.removeEventListener("resize", handleResize);
 	});
 
-	// функция для определения границ области на основе данных о дорогах
-	const calculateAreaBoundary = (roads) => {
-		if (!roads || !roads.features || !roads.features.length) {
-			return null;
-		}
-
-		// создаем массив всех координат из дорог
-		const allCoordinates = roads.features.flatMap(feature => {
-			if (feature.geometry.type === "LineString") {
-				return feature.geometry.coordinates;
-			} else if (feature.geometry.type === "MultiLineString") {
-				return feature.geometry.coordinates.flat();
-			}
-			return [];
-		});
-
-		if (allCoordinates.length === 0) {
-			return null;
-		}
-
-		// создаем выпуклую оболочку из всех координат
-		const points = turf.points(allCoordinates);
-		const convexHullPolygon = convexHull(points);
-
-		return convexHullPolygon;
-	};
-
-	// обработка сообщений от воркера
+	// handle messages from worker
 	const handleWorkerMessage = (event) => {
 		const { type, path, error, roads, progress, center, radius } = event.data;
-		console.log("Получено сообщение от воркера:", type, event.data);
+
+		console.log("Message received from worker:", type, event.data);
 
 		if (error) {
-			console.error("Ошибка от воркера:", error);
+			console.error("Error from worker:", error);
+
 			isLoadingRoads.value = false;
 			isLoadingRoute.value = false;
-			
-			// показываем понятное сообщение для ошибки "путь не найден"
+
+			// show a clear message for 'no path found' error
 			if (error === "No path found between points") {
-				routeLoadingMessage.value = "Не удалось найти путь между выбранными точками. Попробуйте выбрать другие точки.";
+				routeLoadingMessage.value = "Could not find a path between the selected points. Try choosing different points.";
 			} else {
-				roadsLoadingMessage.value = `Ошибка: ${error}`;
-				routeLoadingMessage.value = `Ошибка: ${error}`;
+				roadsLoadingMessage.value = `Error: ${error}`;
+				routeLoadingMessage.value = `Error: ${error}`;
 			}
 			
 			setTimeout(() => {
 				roadsLoadingMessage.value = "";
 				routeLoadingMessage.value = "";
-			}, 5000); // увеличенный таймаут до 5 секунд для лучшей читаемости
+			}, 5000); // Increased timeout to 5 seconds for better readability
+
 			return;
 		}
 
 		switch (type) {
 			case "init_complete":
-				console.log("Инициализация воркера завершена");
+				console.log("Worker initialization complete");
+
 				isLoadingRoads.value = false;
 				roadsLoadingProgress.value = 0;
 				roadsLoadingMessage.value = "";
+
 				break;
 
 			case "area_set":
-				console.log("Параметры области установлены:", { center, radius });
+				console.log("Area parameters set:", { center, radius });
 				break;
 
 			case "roads_loaded":
 				roadData.value = roads;
-				// даем время на отображение 100% прогресса
+				// give time to display 100% progress
 				setTimeout(() => {
 					isLoadingRoads.value = false;
 					roadsLoadingProgress.value = 0;
@@ -191,63 +173,71 @@
 
 			case "roads_progress":
 				roadsLoadingProgress.value = progress;
-				roadsLoadingMessage.value = `Загрузка данных о дорогах: ${Math.round(progress)}%`;
+				roadsLoadingMessage.value = `Loading road data: ${Math.round(progress)}%`;
 				break;
 
 			case "route_progress":
 				routeLoadingProgress.value = progress;
-				routeLoadingMessage.value = `Поиск кратчайшего маршрута: ${Math.round(progress)}%`;
+				routeLoadingMessage.value = `Searching for the shortest route: ${Math.round(progress)}%`;
 				break;
 
 			case "route_found":
 				if (path) {
 					drawRoute(path);
 				}
-				// даем время на отображение 100% прогресса перед закрытием
+
+				// give time to display 100% progress before closing
 				setTimeout(() => {
 					isLoadingRoute.value = false;
 					routeLoadingProgress.value = 0;
 					routeLoadingMessage.value = "";
 				}, 1000);
+
 				break;
 
 			default:
-				console.warn("Неизвестный тип сообщения:", type);
+				console.warn("Unknown message type:", type);
 		}
-	};
+	}
 
-	// загрузка данных о дорогах
+	// load road data
 	const loadRoadData = async () => {
 		try {
-			console.log("Начинаем загрузку данных дорог");
+			console.log("Starting to load road data");
+
 			isLoadingRoads.value = true;
 			roadsLoadingProgress.value = 0;
-			roadsLoadingMessage.value = "Загрузка данных о дорогах...";
+			roadsLoadingMessage.value = "Loading road data...";
 
 			const response = await fetch("/data/roads.geojson");
+
 			if (!response.ok) {
-				throw new Error(`Ошибка HTTP! статус: ${response.status}`);
+				throw new Error(`HTTP error! status: ${response.status}`);
 			}
+
 			const data = await response.json();
-			console.log("Данные дорог загружены:", data);
+
+			console.log("Road data loaded:", data);
 
 			if (!data || !data.features || !Array.isArray(data.features)) {
-				throw new Error("Некорректный формат данных о дорогах");
+				throw new Error("Invalid road data format");
 			}
 
-			// отправка данных воркеру
+			// send data to worker
 			sendDataToWorker(data);
 		} catch (error) {
-			console.error("Ошибка при загрузке данных дорог:", error);
+			console.error("Error during road data loading:", error);
+
 			isLoadingRoads.value = false;
-			roadsLoadingMessage.value = `Ошибка: ${error.message}`;
+			roadsLoadingMessage.value = `Error: ${error.message}`;
+
 			setTimeout(() => {
 				roadsLoadingMessage.value = "";
 			}, 3000);
 		}
-	};
+	}
 
-	// отправка данных воркеру
+	// send data to worker
 	const sendDataToWorker = (data) => {
 		worker.value.postMessage({
 			type: "init",
@@ -255,84 +245,93 @@
 				roads: data
 			}
 		});
-		console.log("Данные отправлены в worker");
-	};
+		console.log("Data sent to worker");
+	}
 
-	// функция для добавления точки на карту
+	// function to add a point to the map
 	const addPoint = (lat, lng) => {
-		// если нет начальной точки, добавляем её
+		// if there is no start point, add it
 		if (!startPoint.value) {
 			startPoint.value = [lat, lng];
+
 			addMarker(lat, lng, "start");
 		}
-		// если есть начальная точка, но нет конечной, добавляем конечную
+
+		// if there is a start point but no end point, add the end point
 		else if (!endPoint.value) {
 			endPoint.value = [lat, lng];
+
 			addMarker(lat, lng, "end");
-			// автоматически ищем маршрут после установки обеих точек
+			// automatically search for a route after both points are set
 			findRoute();
 		}
-		// если обе точки уже установлены, заменяем конечную
+		// if both points are already set, replace the end point
 		else {
 			endPoint.value = [lat, lng];
+
 			addMarker(lat, lng, "end");
-			// пересчитываем маршрут
+			// recalculate the route
 			findRoute();
 		}
-	};
+	}
 
-	// обработка клика по карте
+	// handle map click
 	const handleMapClick = (e) => {
 		const { lat, lng } = e.latlng;
-		console.log("Клик по карте:", { lat, lng });
 
-		// проверяем, находится ли точка в пределах области
+		console.log("Map click:", { lat, lng });
+
+		// check if the point is within the allowed area
 		const point = turf.point([lng, lat]);
 		const center = turf.point([moscowCenter.lng, moscowCenter.lat]);
 		const distance = turf.distance(point, center, { units: "kilometers" });
 
 		if (distance > moscowRadius) {
-			roadsLoadingMessage.value = "Точка находится за пределами допустимой области";
+			roadsLoadingMessage.value = "The point is outside the allowed area";
+
 			setTimeout(() => {
 				roadsLoadingMessage.value = "";
 			}, 3000);
+
 			return;
 		}
 
-		// если есть маршрут, очищаем его при клике на карту
+		// if there is a route, clear it when clicking on the map
 		if (route.value) {
 			clearMap();
 		}
 
-		// добавляем новую точку
+		// add a new point
 		addPoint(lat, lng);
-	};
+	}
 
-	// функция для поиска маршрута
+	// function to find a route
 	const findRoute = async () => {
 		if (!startPoint.value || !endPoint.value) {
-			console.error("Не выбраны начальная или конечная точка");
+			console.error("Start or end point not selected");
 			return;
 		}
 
 		isLoadingRoute.value = true;
 		routeLoadingProgress.value = 0;
-		routeLoadingMessage.value = "Поиск кратчайшего маршрута: 0%";
+		routeLoadingMessage.value = "Searching for the shortest route: 0%";
 
-		// преобразуем координаты в числа и проверяем их валидность
+		// convert coordinates to numbers and check their validity
 		const startLat = parseFloat(startPoint.value[0]);
 		const startLng = parseFloat(startPoint.value[1]);
 		const endLat = parseFloat(endPoint.value[0]);
 		const endLng = parseFloat(endPoint.value[1]);
 
 		if (isNaN(startLat) || isNaN(startLng) || isNaN(endLat) || isNaN(endLng)) {
-			console.error("Некорректные координаты:", { startPoint: startPoint.value, endPoint: endPoint.value });
+			console.error("Invalid coordinates:", { startPoint: startPoint.value, endPoint: endPoint.value });
+
 			isLoadingRoute.value = false;
-			routeLoadingMessage.value = "Ошибка: некорректные координаты";
+			routeLoadingMessage.value = "Error: invalid coordinates";
+
 			return;
 		}
 
-		console.log("Поиск маршрута между точками:", {
+		console.log("Searching for a route between points:", {
 			start: { lat: startLat, lng: startLng },
 			end: { lat: endLat, lng: endLng }
 		});
@@ -348,52 +347,55 @@
 				}
 			});
 		} catch (error) {
-			console.error("Ошибка при отправке данных в воркер:", error);
-			isLoadingRoute.value = false;
-			routeLoadingMessage.value = "Ошибка при поиске маршрута";
-		}
-	};
+			console.error("Error sending data to worker:", error);
 
-	// отрисовка маршрута на карте
+			isLoadingRoute.value = false;
+			routeLoadingMessage.value = "Error searching for route";
+		}
+	}
+
+	// draw the route on the map
 	const drawRoute = (path) => {
-		console.log("Начинаем отрисовку маршрута:", path);
+		console.log("Starting to draw the route:", path);
+
 		if (!path || !path.geometry || !path.geometry.coordinates) {
-			console.error("Некорректные данные пути для отрисовки");
+			console.error("Invalid path data for drawing");
 			return;
 		}
 
 		try {
-			// удаляем существующий маршрут
+			// remove existing route
 			if (routeLayer.value) {
 				routeLayer.value.remove();
 			}
 
-			// меняем координаты с [долгота, широта] на [широта, долгота] для leaflet
+			// convert coordinates from [lng, lat] to [lat, lng] for leaflet
 			const leafletPath = path.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
 
-			// создаем полилинию
+			// create a polyline
 			routeLayer.value = L.polyline(leafletPath, {
 				color: "#3388ff",
 				weight: 5,
 				opacity: 0.7
 			}).addTo(map.value);
-			console.log("Маршрут успешно отрисован");
 
-			// получаем границы перед любыми операциями с картой
+			console.log("Route successfully drawn");
+
+			// get bounds before any map operations
 			const bounds = routeLayer.value.getBounds();
 
-			// убеждаемся, что карта готова и отключаем анимации
+			// make sure the map is ready and disable animations
 			if (map.value) {
 				const originalZoomAnimation = map.value.options.zoomAnimation;
 				map.value.options.zoomAnimation = false;
 
-				// подгоняем границы
+				// fit bounds
 				map.value.fitBounds(bounds, {
 					padding: [50, 50],
 					animate: false
 				});
 
-				// включаем анимации обратно после небольшой задержки
+				// re-enable animations after a short delay
 				setTimeout(() => {
 					if (map.value) {
 						map.value.options.zoomAnimation = originalZoomAnimation;
@@ -401,31 +403,33 @@
 				}, 100);
 			}
 
-			console.log("Карта отцентрирована по маршруту");
+			console.log("Map centered on route");
 
-			// устанавливаем детали маршрута
+			// set route details
 			route.value = {
 				distance: path.properties.distance,
 				time: path.properties.time
-			};
-			console.log("Детали маршрута:", route.value);
-		} catch (error) {
-			console.error("Ошибка при отрисовке маршрута:", error);
-		}
-	};
+			}
 
-	// добавляем маркер на карту
+			console.log("Route details:", route.value);
+		} catch (error) {
+			console.error("Error drawing route:", error);
+		}
+	}
+
+	// add marker to the map
 	const addMarker = (lat, lng, type) => {
-		console.log("Добавление маркера:", { lat, lng, type });
+		console.log("Adding marker:", { lat, lng, type });
+
 		try {
-			// удаляем существующий маркер того же типа
+			// remove existing marker of the same type
 			if (type === "start" && startMarker.value) {
 				map.value.removeLayer(startMarker.value);
 			} else if (type === "end" && endMarker.value) {
 				map.value.removeLayer(endMarker.value);
 			}
 
-			// создаем новый маркер
+			// create a new marker
 			const marker = L.marker([lat, lng], {
 				draggable: true,
 				icon: L.divIcon({
@@ -436,15 +440,15 @@
 				})
 			});
 
-			// добавляем маркер на карту
+			// add marker to the map
 			marker.addTo(map.value);
 
-			// добавляем обработчик клика для удаления
+			// add click handler for removal
 			marker.on("click", () => {
 				removeMarker(type);
 			});
 
-			// добавляем обработчик окончания перетаскивания
+			// add dragend handler
 			marker.on("dragend", (e) => {
 				const newPos = e.target.getLatLng();
 				const point = turf.point([newPos.lng, newPos.lat]);
@@ -452,10 +456,10 @@
 				const distance = turf.distance(point, center, { units: "kilometers" });
 
 				if (distance > moscowRadius) {
-					// возвращаем маркер на предыдущую позицию
+					// return marker to previous position
 					e.target.setLatLng([lat, lng]);
 
-					roadsLoadingMessage.value = "Точка находится за пределами допустимой области";
+					roadsLoadingMessage.value = "The point is outside the allowed area";
 
 					setTimeout(() => {
 						roadsLoadingMessage.value = "";
@@ -470,28 +474,28 @@
 					endPoint.value = [newPos.lat, newPos.lng];
 				}
 
-				// пересчитываем маршрут при перетаскивании маркера
+				// recalculate route on marker drag
 				if (startPoint.value && endPoint.value) {
 					findRoute();
 				}
 			});
 
-			// сохраняем ссылку на маркер
+			// save marker reference
 			if (type === "start") {
 				startMarker.value = marker;
 			} else {
 				endMarker.value = marker;
 			}
 
-			console.log("Маркер успешно добавлен");
+			console.log("Marker successfully added");
 		} catch (error) {
-			console.error("Ошибка при добавлении маркера:", error);
+			console.error("Error adding marker:", error);
 		}
-	};
+	}
 
-	// удаляем маркер с карты
+	// remove marker from map
 	const removeMarker = (type) => {
-		console.log("Удаление маркера:", type);
+		console.log("Removing marker:", type);
 
 		if (type === "start") {
 			if (startMarker.value) {
@@ -509,18 +513,18 @@
 			endPoint.value = null;
 		}
 
-		// очищаем маршрут, если одна из точек удалена
+		// clear route if one of the points is removed
 		if (routeLayer.value) {
 			routeLayer.value.remove();
 			routeLayer.value = null;
 		}
 
 		route.value = null;
-	};
+	}
 
-	// очищаем карту
+	// clear the map
 	const clearMap = () => {
-		// удаляем маркеры
+		// remove markers
 		if (startMarker.value) {
 			map.value.removeLayer(startMarker.value);
 			startMarker.value = null;
@@ -529,65 +533,65 @@
 			map.value.removeLayer(endMarker.value);
 			endMarker.value = null;
 		}
-		
-		// очищаем точки
+
+		// clear points
 		startPoint.value = null;
 		endPoint.value = null;
-		
-		// очищаем маршрут
+
+		// clear route
 		if (routeLayer.value) {
 			routeLayer.value.remove();
 			routeLayer.value = null;
 		}
-		
-		// очищаем информацию о маршруте
-		route.value = null;
-		
-		console.log("Карта очищена");
-	};
 
-	// форматирование расстояния
+		// clear route information
+		route.value = null;
+
+		console.log("Map cleared");
+	}
+
+	// format distance
 	const formatDistance = (km) => {
 		if (km < 1) {
-			return `${Math.round(km * 1000)} м`;
+			return `${Math.round(km * 1000)} m`;
 		}
 
-		return `${km.toFixed(1)} км`;
-	};
+		return `${km.toFixed(1)} km`;
+	}
 
-	// форматирование времени
+	// format time
 	const formatTime = (hours) => {
 		const minutes = Math.round((hours - Math.floor(hours)) * 60);
 
 		if (Math.floor(hours) === 0) {
-			return `${minutes} мин`;
+			return `${minutes} min`;
 		}
 
-		return `${Math.floor(hours)} ч ${minutes} мин`;
-	};
+		return `${Math.floor(hours)} h ${minutes} min`;
+	}
 </script>
 
 <template>
 	<div ref="mapContainer" class="map-container"></div>
 
-	<!-- сайдбар с информацией о маршруте -->
+	<!-- sidebar with route information -->
 	<div v-if="route" class="route-info">
 		<div class="route-info__content">
-			<h3>Информация о маршруте</h3>
+			<h3>Route Information</h3>
 
 			<div class="route-info__details">
 				<div class="route-info__item">
-					<span class="route-info__label">Расстояние:</span>
+					<span class="route-info__label">Distance:</span>
 					<span class="route-info__value">{{ formatDistance(route.distance) }}</span>
 				</div>
 
 				<div class="route-info__item">
-					<span class="route-info__label">Время в пути:</span>
+					<span class="route-info__label">Time in route:</span>
 					<span class="route-info__value">{{ formatTime(route.time) }}</span>
 				</div>
 			</div>
 
-			<button class="route-info__clear" @click="clearMap">Очистить маршрут</button>
+			<button class="route-info__clear" @click="clearMap">Clear Route</button>
 		</div>
 	</div>
 
@@ -670,6 +674,20 @@
 			&:hover {
 				opacity: 0.9;
 			}
+		}
+	}
+
+	@media screen and (max-width: 768px) {
+		.route-info {
+			left: 50% !important;
+			bottom: 20px !important;
+			top: auto !important;
+			right: auto !important;
+			transform: translateX(-50%);
+			margin: 0 !important;
+			min-width: unset !important;
+			width: 90vw;
+			max-width: 400px;
 		}
 	}
 </style>
