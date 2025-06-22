@@ -36,9 +36,9 @@ This is a web application for working with geographic data and building routes. 
 - **Leaflet.js** - library for interactive maps
 - **Turf.js** - for geospatial calculations
 - **Vite** - project build tool
-- **SASS** - for styling (installed but not used)
-- **Pinia** - for state management (installed but not used)
-- **Vue Router** - for routing (installed but not used)
+- **SASS** - for styling
+- **Pinia** - for state management
+- **Vue Router** - for routing
 
 ## Main Functionality
 
